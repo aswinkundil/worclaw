@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+    content="Worclaw — Personal work planner and time tracker to manage projects, tasks, and daily workload." />
+  <title>Worclaw — Work Planner &amp; Time Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+
+<body>
+  <div id="app">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="logo">🐾 Worclaw</h1>
+      </div>
+      <div class="sidebar-section">
+        <div class="section-title">
+          <span>Projects</span>
+          <button id="btn-new-project" class="btn-icon" title="New Project">＋</button>
+        </div>
+        <div id="new-project-form" class="new-project-form hidden">
+          <input id="input-project-name" type="text" placeholder="Project name…" maxlength="40" />
+          <div class="color-picker" id="color-picker"></div>
+          <div class="form-actions">
+            <button id="btn-save-project" class="btn btn-primary btn-sm">Add</button>
+            <button id="btn-cancel-project" class="btn btn-ghost btn-sm">Cancel</button>
+          </div>
+        </div>
+        <ul id="project-list" class="project-list"></ul>
+      </div>
+      <div class="sidebar-breaks">
+        <div class="section-title"><span>Breaks</span></div>
+        <div class="break-buttons">
+          <button class="btn-break" data-break="lunch" title="Lunch break">🍽 Lunch</button>
+          <button class="btn-break" data-break="tea" title="Tea break">☕ Tea</button>
+          <button class="btn-break" data-break="other" title="Other break">💤 Break</button>
+        </div>
+      </div>
+      <div class="sidebar-footer">
+        <button id="btn-daily-view" class="btn btn-ghost btn-block">📅 Daily View</button>
+        <button id="btn-workload" class="btn btn-ghost btn-block">📊 Workload</button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main id="main" class="main">
+      <!-- Active Task Banner (always visible when a timer is running) -->
+      <div id="active-task-banner" class="active-banner hidden">
+        <div class="active-banner-indicator"></div>
+        <div class="active-banner-info">
+          <span class="active-banner-label">Currently tracking</span>
+          <span id="active-banner-task" class="active-banner-task"></span>
+          <span id="active-banner-project" class="active-banner-project"></span>
+        </div>
+        <span id="active-banner-timer" class="active-banner-timer">00:00:00</span>
+        <div class="active-banner-actions">
+          <button id="active-banner-pause" class="timer-btn pause" title="Pause">⏸</button>
+          <button id="active-banner-resume" class="timer-btn start hidden" title="Resume">▶</button>
+          <button id="active-banner-stop" class="timer-btn stop" title="Stop">⏹</button>
+        </div>
+        <button id="active-banner-go" class="btn btn-ghost btn-sm" title="Go to task">→ Go to task</button>
+      </div>
+
+      <!-- Default / Welcome -->
+      <div id="view-welcome" class="view active">
+        <div class="welcome">
+          <div class="welcome-icon">🚀</div>
+          <h2>Welcome to Worclaw</h2>
+          <p>Create a project from the sidebar to get started.</p>
+        </div>
+      </div>
+
+      <!-- Project Tasks View -->
+      <div id="view-tasks" class="view">
+        <header class="main-header">
+          <div class="project-title">
+            <span id="current-project-color" class="project-dot"></span>
+            <h2 id="current-project-name"></h2>
+          </div>
+          <button id="btn-delete-project" class="btn btn-ghost btn-sm btn-danger" title="Delete project">🗑
+            Delete</button>
+        </header>
+        <div class="add-task-bar">
+          <input id="input-task-title" type="text" placeholder="Add a new task…" maxlength="100" />
+          <button id="btn-add-task" class="btn btn-primary">Add Task</button>
+        </div>
+        <ul id="task-list" class="task-list"></ul>
+        <div id="no-tasks" class="empty-state hidden">
+          <p>No tasks yet. Add one above!</p>
+        </div>
+
+        <!-- Task Detail Panel -->
+        <div id="task-detail" class="task-detail hidden">
+          <div class="task-detail-header">
+            <div class="task-detail-title-row">
+              <input id="task-detail-title" type="text" class="task-detail-title-input" maxlength="100" />
+              <button id="btn-save-task-title" class="btn btn-primary btn-sm" title="Save">✓ Save</button>
+              <button id="btn-delete-task-detail" class="btn btn-ghost btn-sm btn-danger" title="Delete task">🗑
+                Delete</button>
+            </div>
+            <button id="btn-close-detail" class="btn btn-ghost btn-sm">✕ Close</button>
+          </div>
+
+          <!-- Comments -->
+          <div class="task-detail-section">
+            <h4>💬 Comments</h4>
+            <div class="comment-input-row">
+              <input id="comment-input" type="text" placeholder="Add a comment…" maxlength="500" />
+              <button id="btn-add-comment" class="btn btn-primary btn-sm">Add</button>
+            </div>
+            <div id="comments-list" class="comments-list"></div>
+          </div>
+
+          <!-- Attachments -->
+          <div class="task-detail-section">
+            <h4>📎 Attachments</h4>
+            <div class="attachment-upload-row">
+              <label class="btn btn-ghost btn-sm attachment-upload-label">
+                📁 Choose File
+                <input id="attachment-input" type="file" class="hidden"
+                  accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.ppt,.pptx,.zip,.rar" />
+              </label>
+              <span id="attachment-file-name" class="attachment-file-name">No file chosen</span>
+              <button id="btn-upload-attachment" class="btn btn-primary btn-sm hidden">Upload</button>
+            </div>
+            <div id="attachments-list" class="attachments-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daily View -->
+      <div id="view-daily" class="view">
+        <header class="main-header">
+          <h2>📅 Daily Time View</h2>
+          <div class="daily-header-controls">
+            <div class="target-hours-control">
+              <label for="target-hours">Target</label>
+              <input id="target-hours" type="number" class="target-input" value="8.5" min="0.5" max="24" step="0.5" />
+              <span class="target-unit">hrs</span>
+            </div>
+            <input id="date-picker" type="date" class="date-input" />
+          </div>
+        </header>
+        <div id="daily-progress" class="daily-progress"></div>
+        <div id="daily-entries" class="daily-entries"></div>
+        <div id="daily-total" class="daily-total"></div>
+        <div id="no-daily" class="empty-state hidden">
+          <p>No time entries for this day.</p>
+        </div>
+      </div>
+
+      <!-- Workload View -->
+      <div id="view-workload" class="view">
+        <header class="main-header">
+          <h2>📊 Workload Overview</h2>
+          <input id="workload-date-picker" type="date" class="date-input" />
+        </header>
+        <div id="workload-chart" class="workload-chart"></div>
+        <div id="workload-total" class="workload-total"></div>
+        <div id="no-workload" class="empty-state hidden">
+          <p>No work recorded for this day.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Entry Modal -->
+  <div id="entry-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 id="modal-title">Add Time Entry</h3>
+      <div class="modal-body">
+        <!-- Type toggle -->
+        <div class="modal-field">
+          <label>Type</label>
+          <div class="entry-type-toggle">
+            <button class="entry-type-btn active" data-type="work">🔧 Work</button>
+            <button class="entry-type-btn" data-type="break">☕ Break</button>
+          </div>
+        </div>
+
+        <!-- Work fields -->
+        <div id="modal-work-fields">
+          <div class="modal-field">
+            <label for="modal-project">Project</label>
+            <select id="modal-project" class="modal-select"></select>
+          </div>
+          <div class="modal-field">
+            <label for="modal-task">Task</label>
+            <select id="modal-task" class="modal-select"></select>
+          </div>
+        </div>
+
+        <!-- Break fields -->
+        <div id="modal-break-fields" class="hidden">
+          <div class="modal-field">
+            <label for="modal-break-type">Break Type</label>
+            <select id="modal-break-type" class="modal-select">
+              <option value="lunch">🍽 Lunch</option>
+              <option value="tea">☕ Tea</option>
+              <option value="other">💤 Break</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Date & time -->
+        <div class="modal-field">
+          <label for="modal-date">Date</label>
+          <input id="modal-date" type="date" class="modal-input" />
+        </div>
+        <div class="modal-row">
+          <div class="modal-field">
+            <label for="modal-start">Start Time</label>
+            <input id="modal-start" type="time" class="modal-input" />
+          </div>
+          <div class="modal-field">
+            <label for="modal-end">End Time</label>
+            <input id="modal-end" type="time" class="modal-input" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="modal-delete" class="btn btn-ghost btn-sm btn-danger hidden">🗑 Delete</button>
+        <div class="modal-actions-right">
+          <button id="modal-cancel" class="btn btn-ghost btn-sm">Cancel</button>
+          <button id="modal-save" class="btn btn-primary btn-sm">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
