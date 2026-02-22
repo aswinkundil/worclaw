@@ -1,4 +1,5 @@
 // ===== server/index.js — Express API server =====
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { loadAll, saveAll, close } from './db.js';
@@ -93,6 +94,73 @@ app.delete('/api/files/:name', (req, res) => {
     } catch (err) {
         console.error('Error deleting file:', err);
         res.status(500).json({ error: 'Failed to delete file' });
+    }
+});
+
+// ---- AI Task Generation ----
+
+/** POST /api/ai/generate-tasks — generate tasks from a scenario using OpenAI */
+app.post('/api/ai/generate-tasks', async (req, res) => {
+    try {
+        const { scenario } = req.body;
+        if (!scenario || !scenario.trim()) {
+            return res.status(400).json({ error: 'Scenario is required' });
+        }
+
+        const apiKey = process.env.OPENAI_API_KEY;
+        if (!apiKey) {
+            return res.status(500).json({ error: 'OPENAI_API_KEY environment variable is not set. Please set it in .env and restart the server.' });
+        }
+
+        const systemPrompt = `You are a project planning assistant. Given a use case or scenario, break it down into concrete, actionable tasks. Return ONLY a JSON array of task title strings. Each task should be clear, specific, and actionable. Do not include descriptions, numbering, or any other text — just the JSON array.
+
+Example output format:
+["Set up project structure", "Create database schema", "Implement user authentication"]`;
+
+        const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: scenario.trim() },
+                ],
+                temperature: 0.7,
+                max_tokens: 2048,
+            }),
+        });
+
+        if (!openaiRes.ok) {
+            const errBody = await openaiRes.text();
+            console.error('OpenAI API error:', openaiRes.status, errBody);
+            return res.status(502).json({ error: 'Failed to get response from AI service' });
+        }
+
+        const openaiData = await openaiRes.json();
+        const rawText = openaiData?.choices?.[0]?.message?.content || '';
+
+        // Extract JSON array from the response (handle markdown code blocks)
+        const jsonMatch = rawText.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) {
+            console.error('Could not parse AI response:', rawText);
+            return res.status(502).json({ error: 'AI returned an unexpected format. Please try again.' });
+        }
+
+        const tasks = JSON.parse(jsonMatch[0]);
+        if (!Array.isArray(tasks) || tasks.length === 0) {
+            return res.status(502).json({ error: 'AI returned no tasks. Please try a more detailed scenario.' });
+        }
+
+        // Ensure all items are strings
+        const cleanTasks = tasks.map(t => String(t).trim()).filter(t => t.length > 0);
+        res.json({ tasks: cleanTasks });
+    } catch (err) {
+        console.error('Error generating tasks:', err);
+        res.status(500).json({ error: 'Failed to generate tasks. Please try again.' });
     }
 });
 

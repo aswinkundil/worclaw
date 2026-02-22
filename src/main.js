@@ -134,6 +134,8 @@ function wireEvents() {
 
     // ---- Timer events ----
     ui.on('startTimer', taskId => {
+        // Block timer on parent tasks
+        if (store.isParent(taskId)) return;
         store.startTimer(taskId);
         const entry = store.getActiveEntry();
         startTick((e, ms) => ui.updateTimerDisplay(e, ms));
@@ -157,13 +159,22 @@ function wireEvents() {
     });
 
     ui.on('deleteTask', taskId => {
-        if (confirm('Delete this task and its time entries?')) {
-            // stop timer if running for this task
+        const hasKids = store.isParent(taskId);
+        const msg = hasKids
+            ? 'Delete this task and all its subtasks, time entries, comments, and attachments?'
+            : 'Delete this task and its time entries?';
+        if (confirm(msg)) {
+            // stop timer if running for this task or its children
             const active = store.getActiveEntry();
-            if (active && active.taskId === taskId) {
-                handleStop(active.id);
+            if (active) {
+                if (active.taskId === taskId) handleStop(active.id);
+                if (hasKids) {
+                    const children = store.getChildren(taskId);
+                    if (children.some(c => c.id === active.taskId)) handleStop(active.id);
+                }
             }
             store.deleteTask(taskId);
+            ui.closeTaskDetail();
             refresh();
         }
     });
@@ -262,9 +273,31 @@ function wireEvents() {
         }
     });
 
+    // Parent selector in task detail
+    $('#task-parent-select').addEventListener('change', (e) => {
+        const taskId = $('#task-detail').dataset.taskId;
+        if (!taskId) return;
+        const parentId = e.target.value;
+        if (parentId) {
+            const ok = store.setParent(taskId, parentId);
+            if (!ok) {
+                alert('Cannot set this parent. A task that is already a child or has children cannot be nested further.');
+                e.target.value = '';
+            }
+        } else {
+            store.removeParent(taskId);
+        }
+        refresh();
+        ui.renderTaskDetail(taskId);
+    });
+
     $('#btn-delete-task-detail').addEventListener('click', () => {
         const taskId = $('#task-detail').dataset.taskId;
-        if (taskId && confirm('Delete this task and all its time entries, comments, and attachments?')) {
+        const hasKids = taskId ? store.isParent(taskId) : false;
+        const msg = hasKids
+            ? 'Delete this task and all its subtasks, time entries, comments, and attachments?'
+            : 'Delete this task and all its time entries, comments, and attachments?';
+        if (taskId && confirm(msg)) {
             store.deleteTask(taskId);
             ui.closeTaskDetail();
             refresh();
@@ -394,6 +427,106 @@ function wireEvents() {
                 if (taskId) ui.renderAttachments(taskId);
             }
         }
+    });
+
+    // ---- AI Task Generation ----
+
+    let aiTasks = []; // in-memory list for review phase
+
+    $('#btn-ai-generate').addEventListener('click', () => {
+        if (selectedProjectId) {
+            ui.openAiModal(selectedProjectId);
+        }
+    });
+
+    // Cancel buttons
+    $('#ai-cancel-input').addEventListener('click', () => ui.closeAiModal());
+    $('#ai-cancel-review').addEventListener('click', () => ui.closeAiModal());
+    $('#ai-modal').addEventListener('click', e => {
+        if (e.target === $('#ai-modal')) ui.closeAiModal();
+    });
+
+    // Generate tasks
+    $('#ai-generate-btn').addEventListener('click', async () => {
+        const scenario = $('#ai-scenario-input').value.trim();
+        if (!scenario) {
+            ui.showAiError('Please describe a use case or scenario.');
+            return;
+        }
+
+        ui.setAiLoading(true);
+
+        try {
+            const res = await fetch('/api/ai/generate-tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scenario }),
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                ui.showAiError(data.error || 'Failed to generate tasks.');
+                ui.setAiLoading(false);
+                return;
+            }
+
+            aiTasks = data.tasks;
+            ui.renderAiReviewList(aiTasks);
+            ui.showAiReviewPhase();
+        } catch (err) {
+            ui.showAiError('Network error. Please check your connection and try again.');
+        } finally {
+            ui.setAiLoading(false);
+        }
+    });
+
+    // Back to input phase
+    $('#ai-back-btn').addEventListener('click', () => ui.showAiInputPhase());
+
+    // Add a new task row in review
+    $('#ai-add-task-btn').addEventListener('click', () => {
+        aiTasks.push('');
+        ui.renderAiReviewList(aiTasks);
+        // Focus the newly added input
+        const inputs = document.querySelectorAll('.ai-task-input');
+        if (inputs.length) inputs[inputs.length - 1].focus();
+    });
+
+    // Delete and edit tasks in review (delegated)
+    $('#ai-task-list').addEventListener('click', e => {
+        const deleteBtn = e.target.closest('.ai-task-delete');
+        if (deleteBtn) {
+            const item = deleteBtn.closest('.ai-task-item');
+            const idx = parseInt(item.dataset.index);
+            aiTasks.splice(idx, 1);
+            ui.renderAiReviewList(aiTasks);
+        }
+    });
+
+    $('#ai-task-list').addEventListener('input', e => {
+        if (e.target.classList.contains('ai-task-input')) {
+            const item = e.target.closest('.ai-task-item');
+            const idx = parseInt(item.dataset.index);
+            aiTasks[idx] = e.target.value;
+        }
+    });
+
+    // Confirm and add tasks
+    $('#ai-confirm-btn').addEventListener('click', () => {
+        const projectId = $('#ai-project-select').value;
+        const validTasks = aiTasks.map(t => t.trim()).filter(t => t.length > 0);
+
+        if (validTasks.length === 0) {
+            alert('No tasks to add. Please add at least one task.');
+            return;
+        }
+
+        store.addTasksBulk(projectId, validTasks);
+        ui.closeAiModal();
+
+        // Navigate to the project
+        selectedProjectId = projectId;
+        refresh();
     });
 }
 

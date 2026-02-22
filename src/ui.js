@@ -73,42 +73,77 @@ export function renderTasks(projectId, activeEntry) {
   noTasks.classList.add('hidden');
   list.innerHTML = '';
 
-  tasks.forEach(task => {
-    const li = document.createElement('li');
-    li.className = 'task-card';
-
-    // total logged time for this task
-    const entries = store.getTimeEntries(task.id);
-    const totalMs = entries.reduce((sum, e) => sum + store.getElapsedMs(e), 0);
-
-    // is this task's timer currently active?
-    const isActive = activeEntry && activeEntry.taskId === task.id;
-    const isPaused = isActive && activeEntry.isPaused;
-
-    const timerClass = isActive ? (isPaused ? 'paused' : 'running') : '';
-
-    // Show live elapsed for active, or total logged for stopped tasks
-    let displayMs;
-    if (isActive) {
-      displayMs = store.getElapsedMs(activeEntry);
-    } else {
-      // Show total accumulated time — it never goes down
-      displayMs = totalMs;
+  // Sort: top-level first, then group children under their parents
+  const topLevel = tasks.filter(t => !t.parentId);
+  const childMap = {}; // parentId -> [child tasks]
+  tasks.forEach(t => {
+    if (t.parentId) {
+      if (!childMap[t.parentId]) childMap[t.parentId] = [];
+      childMap[t.parentId].push(t);
     }
+  });
 
-    li.innerHTML = `
-      <div class="task-info" data-open-task="${task.id}" title="Click to open details">
-        <div class="task-name">${esc(task.title)}</div>
-        <div class="task-meta">Total logged: ${formatDuration(totalMs)}</div>
-      </div>
-      <div class="task-timer">
-        <span class="timer-display ${timerClass}" data-task-id="${task.id}">
-          ${formatTime(displayMs)}
-        </span>
-        ${timerButtons(task.id, isActive, isPaused, activeEntry)}
-      </div>
-      <button class="task-delete-btn" data-delete-task="${task.id}" title="Delete task">✕</button>
-    `;
+  // Build ordered list: parent, then its children, then next parent, etc.
+  const ordered = [];
+  topLevel.forEach(t => {
+    ordered.push(t);
+    if (childMap[t.id]) {
+      childMap[t.id].forEach(c => ordered.push(c));
+    }
+  });
+
+  ordered.forEach(task => {
+    const li = document.createElement('li');
+    const hasChildren = store.isParent(task.id);
+    const isChild = !!task.parentId;
+
+    li.className = 'task-card' +
+      (hasChildren ? ' parent-task' : '') +
+      (isChild ? ' child-task' : '');
+
+    if (hasChildren) {
+      // Parent task — show aggregated duration, no timer buttons
+      const totalMs = store.getParentTotalMs(task.id);
+      const childCount = store.getChildren(task.id).length;
+
+      li.innerHTML = `
+        <div class="task-info" data-open-task="${task.id}" title="Click to open details">
+          <div class="task-name">${esc(task.title)}</div>
+          <div class="task-meta">
+            <span class="child-count-badge">${childCount} subtask${childCount !== 1 ? 's' : ''}</span>
+            · Total: ${formatDuration(totalMs)}
+          </div>
+        </div>
+        <div class="task-timer">
+          <span class="timer-display parent-duration">${formatTime(totalMs)}</span>
+        </div>
+        <button class="task-delete-btn" data-delete-task="${task.id}" title="Delete task">✕</button>
+      `;
+    } else {
+      // Normal or child task — standard timer controls
+      const entries = store.getTimeEntries(task.id);
+      const totalMs = entries.reduce((sum, e) => sum + store.getElapsedMs(e), 0);
+
+      const isActive = activeEntry && activeEntry.taskId === task.id;
+      const isPaused = isActive && activeEntry.isPaused;
+      const timerClass = isActive ? (isPaused ? 'paused' : 'running') : '';
+      const displayMs = isActive ? store.getElapsedMs(activeEntry) : totalMs;
+
+      li.innerHTML = `
+        ${isChild ? '<span class="child-connector">└</span>' : ''}
+        <div class="task-info" data-open-task="${task.id}" title="Click to open details">
+          <div class="task-name">${esc(task.title)}</div>
+          <div class="task-meta">Total logged: ${formatDuration(totalMs)}</div>
+        </div>
+        <div class="task-timer">
+          <span class="timer-display ${timerClass}" data-task-id="${task.id}">
+            ${formatTime(displayMs)}
+          </span>
+          ${timerButtons(task.id, isActive, isPaused, activeEntry)}
+        </div>
+        <button class="task-delete-btn" data-delete-task="${task.id}" title="Delete task">✕</button>
+      `;
+    }
     list.appendChild(li);
   });
 
@@ -492,6 +527,49 @@ export function renderTaskDetail(taskId) {
 
   $('#task-detail-title').value = task.title;
 
+  // ---- Hierarchy ----
+  const hasChildren = store.isParent(taskId);
+  const select = $('#task-parent-select');
+  const childrenList = $('#task-children-list');
+
+  // Parent selector — hidden if this task already has children (it's a parent)
+  const hierarchyField = select.closest('.hierarchy-field');
+  if (hasChildren) {
+    hierarchyField.classList.add('hidden');
+  } else {
+    hierarchyField.classList.remove('hidden');
+    const eligible = store.getEligibleParents(taskId);
+    select.innerHTML = '<option value="">— None (top-level) —</option>';
+    eligible.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.title;
+      if (task.parentId === p.id) opt.selected = true;
+      select.appendChild(opt);
+    });
+  }
+
+  // Children list
+  if (hasChildren) {
+    childrenList.classList.remove('hidden');
+    const children = store.getChildren(taskId);
+    childrenList.innerHTML = `
+      <div class="children-header">Subtasks (${children.length})</div>
+      ${children.map(c => `
+        <div class="child-item" data-open-task="${c.id}">
+          <span class="child-connector-sm">└</span>
+          <span class="child-item-name">${esc(c.title)}</span>
+        </div>
+      `).join('')}
+    `;
+    // Wire clicks on children
+    childrenList.querySelectorAll('[data-open-task]').forEach(el =>
+      el.addEventListener('click', () => emit('openTaskDetail', el.dataset.openTask)));
+  } else {
+    childrenList.classList.add('hidden');
+    childrenList.innerHTML = '';
+  }
+
   renderComments(taskId);
   renderAttachments(taskId);
 }
@@ -560,4 +638,67 @@ function formatFileSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// ---- AI Modal ----
+
+export function openAiModal(selectedProjectId) {
+  const modal = $('#ai-modal');
+  const select = $('#ai-project-select');
+  const projects = store.getProjects();
+
+  // Populate project dropdown
+  select.innerHTML = projects.map(p =>
+    `<option value="${p.id}" ${p.id === selectedProjectId ? 'selected' : ''}>${esc(p.name)}</option>`
+  ).join('');
+
+  // Reset to input phase
+  $('#ai-phase-input').classList.remove('hidden');
+  $('#ai-phase-review').classList.add('hidden');
+  $('#ai-scenario-input').value = '';
+  $('#ai-error').classList.add('hidden');
+  $('#ai-generate-text').classList.remove('hidden');
+  $('#ai-generate-spinner').classList.add('hidden');
+  $('#ai-generate-btn').disabled = false;
+
+  modal.classList.remove('hidden');
+  $('#ai-scenario-input').focus();
+}
+
+export function renderAiReviewList(tasks) {
+  const list = $('#ai-task-list');
+  list.innerHTML = tasks.map((title, i) => `
+        <div class="ai-task-item" data-index="${i}">
+            <span class="ai-task-number">${i + 1}</span>
+            <input type="text" class="ai-task-input" value="${esc(title)}" maxlength="100" />
+            <button class="ai-task-delete" title="Remove task">✕</button>
+        </div>
+    `).join('');
+}
+
+export function closeAiModal() {
+  $('#ai-modal').classList.add('hidden');
+}
+
+export function showAiError(msg) {
+  const el = $('#ai-error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+export function setAiLoading(loading) {
+  $('#ai-generate-text').classList.toggle('hidden', loading);
+  $('#ai-generate-spinner').classList.toggle('hidden', !loading);
+  $('#ai-generate-btn').disabled = loading;
+  if (loading) $('#ai-error').classList.add('hidden');
+}
+
+export function showAiReviewPhase() {
+  $('#ai-phase-input').classList.add('hidden');
+  $('#ai-phase-review').classList.remove('hidden');
+}
+
+export function showAiInputPhase() {
+  $('#ai-phase-review').classList.add('hidden');
+  $('#ai-phase-input').classList.remove('hidden');
 }

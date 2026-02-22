@@ -90,6 +90,7 @@
         <div class="add-task-bar">
           <input id="input-task-title" type="text" placeholder="Add a new task…" maxlength="100" />
           <button id="btn-add-task" class="btn btn-primary">Add Task</button>
+          <button id="btn-ai-generate" class="btn btn-ai" title="Generate tasks with AI">✨ AI Generate</button>
         </div>
         <ul id="task-list" class="task-list"></ul>
         <div id="no-tasks" class="empty-state hidden">
@@ -106,6 +107,18 @@
                 Delete</button>
             </div>
             <button id="btn-close-detail" class="btn btn-ghost btn-sm">✕ Close</button>
+          </div>
+
+          <!-- Hierarchy (Parent / Children) -->
+          <div id="task-hierarchy" class="task-detail-section">
+            <h4>🔗 Hierarchy</h4>
+            <div class="hierarchy-field">
+              <label for="task-parent-select">Parent Task</label>
+              <select id="task-parent-select" class="modal-select">
+                <option value="">— None (top-level) —</option>
+              </select>
+            </div>
+            <div id="task-children-list" class="task-children-list hidden"></div>
           </div>
 
           <!-- Comments -->
@@ -230,6 +243,55 @@
         <div class="modal-actions-right">
           <button id="modal-cancel" class="btn btn-ghost btn-sm">Cancel</button>
           <button id="modal-save" class="btn btn-primary btn-sm">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Task Generation Modal -->
+  <div id="ai-modal" class="modal-overlay hidden">
+    <div class="modal ai-modal">
+      <!-- Phase 1: Input -->
+      <div id="ai-phase-input">
+        <h3>✨ AI Task Generator</h3>
+        <div class="modal-body">
+          <div class="modal-field">
+            <label for="ai-project-select">Project</label>
+            <select id="ai-project-select" class="modal-select"></select>
+          </div>
+          <div class="modal-field">
+            <label for="ai-scenario-input">Describe the use case or scenario</label>
+            <textarea id="ai-scenario-input" class="ai-textarea" rows="5"
+              placeholder="e.g. Build a user authentication system with login, registration, password reset, and email verification…"
+              maxlength="2000"></textarea>
+          </div>
+          <div id="ai-error" class="ai-error hidden"></div>
+        </div>
+        <div class="modal-actions">
+          <div class="modal-actions-right">
+            <button id="ai-cancel-input" class="btn btn-ghost btn-sm">Cancel</button>
+            <button id="ai-generate-btn" class="btn btn-primary btn-sm">
+              <span id="ai-generate-text">✨ Generate Tasks</span>
+              <span id="ai-generate-spinner" class="spinner hidden"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 2: Review -->
+      <div id="ai-phase-review" class="hidden">
+        <h3>📋 Review Generated Tasks</h3>
+        <p class="ai-review-subtitle">Edit, delete, or add tasks before confirming.</p>
+        <div class="modal-body">
+          <div id="ai-task-list" class="ai-task-list"></div>
+          <button id="ai-add-task-btn" class="btn btn-ghost btn-sm ai-add-task-btn">＋ Add Task</button>
+        </div>
+        <div class="modal-actions">
+          <button id="ai-back-btn" class="btn btn-ghost btn-sm">← Back</button>
+          <div class="modal-actions-right">
+            <button id="ai-cancel-review" class="btn btn-ghost btn-sm">Cancel</button>
+            <button id="ai-confirm-btn" class="btn btn-primary btn-sm">✓ Confirm & Add</button>
+          </div>
         </div>
       </div>
     </div>

@@ -28,6 +28,7 @@ db.exec(`
     projectId TEXT NOT NULL,
     title TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'todo',
+    parentId TEXT,
     createdAt INTEGER NOT NULL
   );
 
@@ -65,6 +66,12 @@ db.exec(`
   );
 `);
 
+// ---- Migrations ----
+// Add parentId column if missing (for existing databases)
+try {
+    db.exec(`ALTER TABLE tasks ADD COLUMN parentId TEXT`);
+} catch { /* column already exists */ }
+
 // ---- Prepared statements ----
 
 const stmts = {
@@ -84,7 +91,7 @@ const stmts = {
         'INSERT OR REPLACE INTO projects (id, name, color, createdAt) VALUES (@id, @name, @color, @createdAt)'
     ),
     insertTask: db.prepare(
-        'INSERT OR REPLACE INTO tasks (id, projectId, title, status, createdAt) VALUES (@id, @projectId, @title, @status, @createdAt)'
+        'INSERT OR REPLACE INTO tasks (id, projectId, title, status, parentId, createdAt) VALUES (@id, @projectId, @title, @status, @parentId, @createdAt)'
     ),
     insertEntry: db.prepare(
         `INSERT OR REPLACE INTO time_entries
@@ -139,7 +146,14 @@ export const saveAll = db.transaction((data) => {
     }
 
     for (const t of data.tasks) {
-        stmts.insertTask.run(t);
+        stmts.insertTask.run({
+            id: t.id,
+            projectId: t.projectId,
+            title: t.title,
+            status: t.status,
+            parentId: t.parentId ?? null,
+            createdAt: t.createdAt,
+        });
     }
 
     for (const e of data.timeEntries) {

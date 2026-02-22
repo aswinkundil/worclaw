@@ -102,12 +102,22 @@ export function getTask(taskId) {
     return loadData().tasks.find(t => t.id === taskId) || null;
 }
 
-export function addTask(projectId, title) {
+export function addTask(projectId, title, parentId = null) {
     const data = loadData();
-    const task = { id: uid(), projectId, title, status: 'todo', createdAt: Date.now() };
+    const task = { id: uid(), projectId, title, status: 'todo', parentId, createdAt: Date.now() };
     data.tasks.push(task);
     saveData(data);
     return task;
+}
+
+export function addTasksBulk(projectId, titles, parentId = null) {
+    const data = loadData();
+    const tasks = titles.map(title => ({
+        id: uid(), projectId, title, status: 'todo', parentId, createdAt: Date.now(),
+    }));
+    data.tasks.push(...tasks);
+    saveData(data);
+    return tasks;
 }
 
 export function renameTask(taskId, newTitle) {
@@ -122,11 +132,86 @@ export function renameTask(taskId, newTitle) {
 
 export function deleteTask(taskId) {
     const data = loadData();
-    data.timeEntries = data.timeEntries.filter(e => e.taskId !== taskId);
-    data.tasks = data.tasks.filter(t => t.id !== taskId);
-    data.comments = (data.comments || []).filter(c => c.taskId !== taskId);
-    data.attachments = (data.attachments || []).filter(a => a.taskId !== taskId);
+    // Collect this task + all children
+    const childIds = data.tasks.filter(t => t.parentId === taskId).map(t => t.id);
+    const allIds = [taskId, ...childIds];
+    data.timeEntries = data.timeEntries.filter(e => !allIds.includes(e.taskId));
+    data.tasks = data.tasks.filter(t => !allIds.includes(t.id));
+    data.comments = (data.comments || []).filter(c => !allIds.includes(c.taskId));
+    data.attachments = (data.attachments || []).filter(a => !allIds.includes(a.taskId));
     saveData(data);
+}
+
+// ---- Parent-Child relationships ----
+
+export function getChildren(taskId) {
+    return loadData().tasks.filter(t => t.parentId === taskId);
+}
+
+export function isParent(taskId) {
+    return loadData().tasks.some(t => t.parentId === taskId);
+}
+
+/** Get total duration (ms) of all child tasks */
+export function getParentTotalMs(taskId) {
+    const data = loadData();
+    const children = data.tasks.filter(t => t.parentId === taskId);
+    let total = 0;
+    for (const child of children) {
+        const entries = data.timeEntries.filter(e => e.taskId === child.id);
+        total += entries.reduce((sum, e) => sum + getElapsedMs(e), 0);
+    }
+    return total;
+}
+
+/** Set a task's parent. Returns false if invalid. */
+export function setParent(taskId, parentId) {
+    if (taskId === parentId) return false;
+    const data = loadData();
+    const task = data.tasks.find(t => t.id === taskId);
+    const parent = data.tasks.find(t => t.id === parentId);
+    if (!task || !parent) return false;
+    // Parent must be in the same project
+    if (task.projectId !== parent.projectId) return false;
+    // Cannot make a child of a task that is itself a child (1 level max)
+    if (parent.parentId) return false;
+    // Cannot set parent on a task that already has children (would create depth > 1)
+    if (data.tasks.some(t => t.parentId === taskId)) return false;
+    task.parentId = parentId;
+    // Stop any running timer on the parent (parents should not have direct timers)
+    data.timeEntries.forEach(e => {
+        if (e.taskId === parentId && e.isRunning) {
+            if (e.isPaused && e.pausedAt) e.totalPausedMs += Date.now() - e.pausedAt;
+            e.isRunning = false;
+            e.isPaused = false;
+            e.pausedAt = null;
+            e.endTime = Date.now();
+        }
+    });
+    saveData(data);
+    return true;
+}
+
+export function removeParent(taskId) {
+    const data = loadData();
+    const task = data.tasks.find(t => t.id === taskId);
+    if (task) {
+        task.parentId = null;
+        saveData(data);
+    }
+}
+
+/** Returns tasks in same project that can be a parent of this task */
+export function getEligibleParents(taskId) {
+    const data = loadData();
+    const task = data.tasks.find(t => t.id === taskId);
+    if (!task) return [];
+    return data.tasks.filter(t =>
+        t.projectId === task.projectId &&
+        t.id !== taskId &&
+        !t.parentId && // can't be a child itself
+        t.parentId !== taskId // not already a child of this task (redundant but safe)
+    );
 }
 
 // ---- Time entries ----

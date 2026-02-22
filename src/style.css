@@ -721,6 +721,104 @@ input[type="date"] {
   background: var(--danger-bg);
 }
 
+/* ===== Parent-Child Hierarchy ===== */
+
+/* Parent task card */
+.task-card.parent-task {
+  border-left: 3px solid var(--accent-start);
+  background: rgba(139, 92, 246, 0.04);
+}
+
+.task-card.parent-task:hover {
+  background: rgba(139, 92, 246, 0.08);
+}
+
+.parent-duration {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}
+
+.child-count-badge {
+  display: inline-block;
+  background: rgba(139, 92, 246, 0.15);
+  color: var(--accent-start);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 99px;
+}
+
+/* Child task card */
+.task-card.child-task {
+  margin-left: 28px;
+  border-left: 2px solid rgba(139, 92, 246, 0.2);
+}
+
+.child-connector {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  opacity: 0.5;
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+
+/* Hierarchy in task detail panel */
+.hierarchy-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+}
+
+.hierarchy-field label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.task-children-list {
+  margin-top: var(--sp-sm);
+}
+
+.children-header {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: var(--sp-xs);
+}
+
+.child-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: var(--sp-xs) var(--sp-sm);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+
+.child-item:hover {
+  background: rgba(139, 92, 246, 0.08);
+}
+
+.child-connector-sm {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  opacity: 0.5;
+}
+
+.child-item-name {
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+}
+
 /* Empty State */
 .empty-state {
   text-align: center;
@@ -1574,4 +1672,192 @@ input[type="date"] {
   align-items: center;
   gap: var(--sp-sm);
   padding: 2px 0;
+}
+
+/* ===== AI Task Generation ===== */
+
+/* AI Generate Button */
+.btn-ai {
+  background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+  color: #fff;
+  border: none;
+  padding: var(--sp-sm) var(--sp-lg);
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--dur) var(--ease);
+  white-space: nowrap;
+}
+
+.btn-ai:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+  filter: brightness(1.1);
+}
+
+.btn-ai:active {
+  transform: translateY(0);
+}
+
+/* AI Modal overrides */
+.ai-modal {
+  width: 520px;
+}
+
+.ai-textarea {
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  padding: var(--sp-md);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  resize: vertical;
+  min-height: 100px;
+  max-height: 250px;
+  line-height: 1.5;
+  transition: border-color var(--dur) var(--ease);
+}
+
+.ai-textarea:focus {
+  border-color: var(--accent-start);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.ai-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* AI Error */
+.ai-error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  color: var(--danger);
+  font-size: var(--fs-sm);
+  animation: fadeIn 0.2s ease;
+}
+
+/* Spinner */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* AI Review Phase */
+.ai-review-subtitle {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin: 0;
+  padding: var(--sp-sm) var(--sp-xl) 0;
+}
+
+.ai-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.ai-task-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: var(--sp-xs);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: all var(--dur) var(--ease);
+  animation: slideDown 0.2s var(--ease);
+}
+
+.ai-task-item:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.ai-task-number {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--accent-start);
+  min-width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(139, 92, 246, 0.12);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ai-task-input {
+  flex: 1;
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  padding: var(--sp-xs) var(--sp-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--dur) var(--ease);
+}
+
+.ai-task-input:focus {
+  border-color: var(--accent-start);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ai-task-delete {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--dur) var(--ease);
+  flex-shrink: 0;
+}
+
+.ai-task-delete:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.ai-add-task-btn {
+  margin-top: var(--sp-xs);
+  width: 100%;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-sm);
+  color: var(--text-muted);
+  transition: all var(--dur) var(--ease);
+}
+
+.ai-add-task-btn:hover {
+  border-color: var(--accent-start);
+  color: var(--accent-start);
+  background: rgba(139, 92, 246, 0.05);
 }
