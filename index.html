@@ -97,56 +97,6 @@
         <div id="no-tasks" class="empty-state hidden">
           <p>No tasks yet. Add one above!</p>
         </div>
-
-        <!-- Task Detail Panel -->
-        <div id="task-detail" class="task-detail hidden">
-          <div class="task-detail-header">
-            <div class="task-detail-title-row">
-              <input id="task-detail-title" type="text" class="task-detail-title-input" maxlength="100" />
-              <button id="btn-save-task-title" class="btn btn-primary btn-sm" title="Save">✓ Save</button>
-              <button id="btn-delete-task-detail" class="btn btn-ghost btn-sm btn-danger" title="Delete task">🗑
-                Delete</button>
-            </div>
-            <button id="btn-close-detail" class="btn btn-ghost btn-sm">✕ Close</button>
-          </div>
-
-          <!-- Hierarchy (Parent / Children) -->
-          <div id="task-hierarchy" class="task-detail-section">
-            <h4>🔗 Hierarchy</h4>
-            <div class="hierarchy-field">
-              <label for="task-parent-select">Parent Task</label>
-              <select id="task-parent-select" class="modal-select">
-                <option value="">— None (top-level) —</option>
-              </select>
-            </div>
-            <div id="task-children-list" class="task-children-list hidden"></div>
-          </div>
-
-          <!-- Comments -->
-          <div class="task-detail-section">
-            <h4>💬 Comments</h4>
-            <div class="comment-input-row">
-              <input id="comment-input" type="text" placeholder="Add a comment…" maxlength="500" />
-              <button id="btn-add-comment" class="btn btn-primary btn-sm">Add</button>
-            </div>
-            <div id="comments-list" class="comments-list"></div>
-          </div>
-
-          <!-- Attachments -->
-          <div class="task-detail-section">
-            <h4>📎 Attachments</h4>
-            <div class="attachment-upload-row">
-              <label class="btn btn-ghost btn-sm attachment-upload-label">
-                📁 Choose File
-                <input id="attachment-input" type="file" class="hidden"
-                  accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.ppt,.pptx,.zip,.rar" />
-              </label>
-              <span id="attachment-file-name" class="attachment-file-name">No file chosen</span>
-              <button id="btn-upload-attachment" class="btn btn-primary btn-sm hidden">Upload</button>
-            </div>
-            <div id="attachments-list" class="attachments-list"></div>
-          </div>
-        </div>
       </div>
 
       <!-- Daily View -->
@@ -192,6 +142,12 @@
             <span class="board-view-badge">Board</span>
           </div>
           <div class="board-header-actions">
+            <div id="add-bucket-form" class="add-bucket-form hidden">
+              <input id="input-bucket-name" type="text" placeholder="Bucket name…" maxlength="40"
+                class="add-bucket-input" />
+              <button id="btn-save-bucket" class="btn btn-primary btn-sm">Add</button>
+              <button id="btn-cancel-bucket" class="btn btn-ghost btn-sm">✕</button>
+            </div>
             <button id="btn-add-bucket" class="btn btn-primary btn-sm">＋ Add Bucket</button>
             <button id="btn-back-to-list" class="btn btn-ghost btn-sm">← List View</button>
           </div>
@@ -199,6 +155,56 @@
         <div id="board-columns" class="board-columns"></div>
         <div id="no-buckets" class="empty-state hidden">
           <p>No buckets yet. Create one to start organizing your tasks!</p>
+        </div>
+      </div>
+
+      <!-- Task Detail Panel (shared by list and board views) -->
+      <div id="task-detail" class="task-detail hidden">
+        <div class="task-detail-header">
+          <div class="task-detail-title-row">
+            <input id="task-detail-title" type="text" class="task-detail-title-input" maxlength="100" />
+            <button id="btn-save-task-title" class="btn btn-primary btn-sm" title="Save">✓ Save</button>
+            <button id="btn-delete-task-detail" class="btn btn-ghost btn-sm btn-danger" title="Delete task">🗑
+              Delete</button>
+          </div>
+          <button id="btn-close-detail" class="btn btn-ghost btn-sm">✕ Close</button>
+        </div>
+
+        <!-- Hierarchy (Parent / Children) -->
+        <div id="task-hierarchy" class="task-detail-section">
+          <h4>🔗 Hierarchy</h4>
+          <div class="hierarchy-field">
+            <label for="task-parent-select">Parent Task</label>
+            <select id="task-parent-select" class="modal-select">
+              <option value="">— None (top-level) —</option>
+            </select>
+          </div>
+          <div id="task-children-list" class="task-children-list hidden"></div>
+        </div>
+
+        <!-- Comments -->
+        <div class="task-detail-section">
+          <h4>💬 Comments</h4>
+          <div class="comment-input-row">
+            <input id="comment-input" type="text" placeholder="Add a comment…" maxlength="500" />
+            <button id="btn-add-comment" class="btn btn-primary btn-sm">Add</button>
+          </div>
+          <div id="comments-list" class="comments-list"></div>
+        </div>
+
+        <!-- Attachments -->
+        <div class="task-detail-section">
+          <h4>📎 Attachments</h4>
+          <div class="attachment-upload-row">
+            <label class="btn btn-ghost btn-sm attachment-upload-label">
+              📁 Choose File
+              <input id="attachment-input" type="file" class="hidden"
+                accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.ppt,.pptx,.zip,.rar" />
+            </label>
+            <span id="attachment-file-name" class="attachment-file-name">No file chosen</span>
+            <button id="btn-upload-attachment" class="btn btn-primary btn-sm hidden">Upload</button>
+          </div>
+          <div id="attachments-list" class="attachments-list"></div>
         </div>
       </div>
     </main>

@@ -1882,6 +1882,29 @@ input[type="date"] {
   align-items: center;
 }
 
+.add-bucket-form {
+  display: flex;
+  gap: var(--sp-xs);
+  align-items: center;
+}
+
+.add-bucket-input {
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  padding: var(--sp-xs) var(--sp-md);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  width: 180px;
+  transition: border-color var(--dur) var(--ease);
+}
+
+.add-bucket-input:focus {
+  border-color: var(--accent-start);
+}
+
 .board-columns {
   display: flex;
   gap: var(--sp-lg);

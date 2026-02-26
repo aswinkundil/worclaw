@@ -238,12 +238,33 @@ function wireEvents() {
         refresh();
     });
 
+    // Add Bucket — inline form (no prompt)
     $('#btn-add-bucket').addEventListener('click', () => {
-        const name = prompt('Bucket name:');
-        if (name && name.trim() && selectedProjectId) {
-            store.addBucket(selectedProjectId, name.trim());
+        $('#add-bucket-form').classList.remove('hidden');
+        $('#btn-add-bucket').classList.add('hidden');
+        const input = $('#input-bucket-name');
+        input.value = '';
+        input.focus();
+    });
+
+    $('#btn-save-bucket').addEventListener('click', () => {
+        const name = $('#input-bucket-name').value.trim();
+        if (name && selectedProjectId) {
+            store.addBucket(selectedProjectId, name);
             refresh();
         }
+        $('#add-bucket-form').classList.add('hidden');
+        $('#btn-add-bucket').classList.remove('hidden');
+    });
+
+    $('#input-bucket-name').addEventListener('keydown', e => {
+        if (e.key === 'Enter') $('#btn-save-bucket').click();
+        if (e.key === 'Escape') $('#btn-cancel-bucket').click();
+    });
+
+    $('#btn-cancel-bucket').addEventListener('click', () => {
+        $('#add-bucket-form').classList.add('hidden');
+        $('#btn-add-bucket').classList.remove('hidden');
     });
 
     $('#btn-back-to-list').addEventListener('click', () => {
@@ -253,9 +274,9 @@ function wireEvents() {
 
     ui.on('renameBucket', bucketId => {
         const bucket = store.getBuckets(selectedProjectId).find(b => b.id === bucketId);
-        const name = prompt('New bucket name:', bucket?.name || '');
-        if (name && name.trim()) {
-            store.renameBucket(bucketId, name.trim());
+        const newName = prompt('New bucket name:', bucket?.name || '');
+        if (newName && newName.trim()) {
+            store.renameBucket(bucketId, newName.trim());
             refresh();
         }
     });
