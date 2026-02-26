@@ -640,6 +640,185 @@ function formatFileSize(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
+// ---- Bucket Board View ----
+
+export function showBoardView(projectId) {
+  const project = store.getProject(projectId);
+  if (!project) return;
+  showView('view-board');
+  $('#board-project-name').textContent = project.name;
+  $('#board-project-color').style.background = project.color;
+}
+
+export function renderBucketBoard(projectId, activeEntry) {
+  const container = $('#board-columns');
+  const noBuckets = $('#no-buckets');
+  const buckets = store.getBuckets(projectId);
+  const allTasks = store.getTasks(projectId);
+
+  container.innerHTML = '';
+
+  // Build columns: one per bucket + "Unbucketed" column
+  const columns = [];
+
+  // Add each bucket as a column
+  buckets.forEach(bucket => {
+    const tasks = allTasks.filter(t => t.bucketId === bucket.id);
+    columns.push({ id: bucket.id, name: bucket.name, tasks, isBucket: true });
+  });
+
+  // Unbucketed column (tasks without a bucketId)
+  const unbucketed = allTasks.filter(t => !t.bucketId);
+  columns.unshift({ id: '__unbucketed__', name: 'Unbucketed', tasks: unbucketed, isBucket: false });
+
+  if (buckets.length === 0 && unbucketed.length === 0) {
+    noBuckets.classList.remove('hidden');
+    return;
+  }
+  noBuckets.classList.add('hidden');
+
+  columns.forEach(col => {
+    const colEl = document.createElement('div');
+    colEl.className = 'board-column';
+    colEl.dataset.bucketId = col.id;
+
+    // Drop zone
+    colEl.addEventListener('dragover', e => {
+      e.preventDefault();
+      colEl.classList.add('drag-over');
+    });
+    colEl.addEventListener('dragleave', () => {
+      colEl.classList.remove('drag-over');
+    });
+    colEl.addEventListener('drop', e => {
+      e.preventDefault();
+      colEl.classList.remove('drag-over');
+      const taskId = e.dataTransfer.getData('text/plain');
+      if (taskId) {
+        const bucketId = col.id === '__unbucketed__' ? null : col.id;
+        store.setTaskBucket(taskId, bucketId);
+        emit('boardRefresh');
+      }
+    });
+
+    // Column header
+    const header = document.createElement('div');
+    header.className = 'board-column-header';
+
+    if (col.isBucket) {
+      header.innerHTML = `
+        <span class="board-column-title" title="Click to rename">${esc(col.name)}</span>
+        <span class="board-column-count">${col.tasks.length}</span>
+        <div class="board-column-actions">
+          <button class="board-col-btn" data-rename-bucket="${col.id}" title="Rename">✏️</button>
+          <button class="board-col-btn board-col-delete" data-delete-bucket="${col.id}" title="Delete bucket">✕</button>
+        </div>
+      `;
+    } else {
+      header.innerHTML = `
+        <span class="board-column-title unbucketed-title">${esc(col.name)}</span>
+        <span class="board-column-count">${col.tasks.length}</span>
+      `;
+    }
+    colEl.appendChild(header);
+
+    // Task cards
+    const cardsContainer = document.createElement('div');
+    cardsContainer.className = 'board-cards';
+
+    col.tasks.forEach(task => {
+      const hasChildren = store.isParent(task.id);
+      const isChild = !!task.parentId;
+      const card = document.createElement('div');
+      card.className = 'board-card' + (hasChildren ? ' parent-task' : '') + (isChild ? ' child-task' : '');
+      card.draggable = true;
+      card.dataset.taskId = task.id;
+
+      card.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', task.id);
+        card.classList.add('dragging');
+      });
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+      });
+
+      if (hasChildren) {
+        const totalMs = store.getParentTotalMs(task.id);
+        const childCount = store.getChildren(task.id).length;
+        card.innerHTML = `
+          <div class="board-card-info" data-open-task="${task.id}" title="Click to open details">
+            <div class="board-card-name">${esc(task.title)}</div>
+            <div class="board-card-meta">
+              <span class="child-count-badge">${childCount} subtask${childCount !== 1 ? 's' : ''}</span>
+              · ${formatDuration(totalMs)}
+            </div>
+          </div>
+        `;
+      } else {
+        const entries = store.getTimeEntries(task.id);
+        const totalMs = entries.reduce((sum, e) => sum + store.getElapsedMs(e), 0);
+        const isActive = activeEntry && activeEntry.taskId === task.id;
+        const isPaused = isActive && activeEntry.isPaused;
+        const timerClass = isActive ? (isPaused ? 'paused' : 'running') : '';
+        const displayMs = isActive ? store.getElapsedMs(activeEntry) : totalMs;
+
+        card.innerHTML = `
+          <div class="board-card-info" data-open-task="${task.id}" title="Click to open details">
+            <div class="board-card-name">${isChild ? '<span class="child-connector">└</span> ' : ''}${esc(task.title)}</div>
+            <div class="board-card-meta">${formatDuration(totalMs)}</div>
+          </div>
+          <div class="board-card-timer">
+            <span class="timer-display ${timerClass}" data-task-id="${task.id}">${formatTime(displayMs)}</span>
+            ${timerButtons(task.id, isActive, isPaused, activeEntry)}
+          </div>
+        `;
+      }
+
+      cardsContainer.appendChild(card);
+    });
+
+    colEl.appendChild(cardsContainer);
+
+    // Add task input at bottom
+    const addRow = document.createElement('div');
+    addRow.className = 'board-add-task';
+    addRow.innerHTML = `
+      <input type="text" class="board-add-task-input" placeholder="＋ Add a task…" maxlength="100" data-bucket-id="${col.id}" />
+    `;
+    colEl.appendChild(addRow);
+
+    container.appendChild(colEl);
+  });
+
+  // Wire up event listeners on new cards
+  container.querySelectorAll('[data-start]').forEach(btn =>
+    btn.addEventListener('click', () => emit('startTimer', btn.dataset.start)));
+  container.querySelectorAll('[data-pause]').forEach(btn =>
+    btn.addEventListener('click', () => emit('pauseTimer', btn.dataset.pause)));
+  container.querySelectorAll('[data-resume]').forEach(btn =>
+    btn.addEventListener('click', () => emit('resumeTimer', btn.dataset.resume)));
+  container.querySelectorAll('[data-stop]').forEach(btn =>
+    btn.addEventListener('click', () => emit('stopTimer', btn.dataset.stop)));
+  container.querySelectorAll('[data-open-task]').forEach(el =>
+    el.addEventListener('click', () => emit('openTaskDetail', el.dataset.openTask)));
+  container.querySelectorAll('[data-rename-bucket]').forEach(btn =>
+    btn.addEventListener('click', () => emit('renameBucket', btn.dataset.renameBucket)));
+  container.querySelectorAll('[data-delete-bucket]').forEach(btn =>
+    btn.addEventListener('click', () => emit('deleteBucket', btn.dataset.deleteBucket)));
+  container.querySelectorAll('.board-add-task-input').forEach(input => {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        const title = input.value.trim();
+        if (title) {
+          const bucketId = input.dataset.bucketId === '__unbucketed__' ? null : input.dataset.bucketId;
+          emit('addTaskToBoard', { projectId, title, bucketId });
+          input.value = '';
+        }
+      }
+    });
+  });
+}
+
 // ---- AI Modal ----
 
 export function openAiModal(selectedProjectId) {

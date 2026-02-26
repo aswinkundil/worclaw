@@ -46,6 +46,7 @@
       <div class="sidebar-footer">
         <button id="btn-daily-view" class="btn btn-ghost btn-block">📅 Daily View</button>
         <button id="btn-workload" class="btn btn-ghost btn-block">📊 Workload</button>
+        <button id="btn-board-view" class="btn btn-ghost btn-block">🗂 Board</button>
       </div>
     </aside>
 
@@ -179,6 +180,25 @@
         <div id="workload-total" class="workload-total"></div>
         <div id="no-workload" class="empty-state hidden">
           <p>No work recorded for this day.</p>
+        </div>
+      </div>
+
+      <!-- Board View -->
+      <div id="view-board" class="view">
+        <header class="main-header">
+          <div class="project-title">
+            <span id="board-project-color" class="project-dot"></span>
+            <h2 id="board-project-name"></h2>
+            <span class="board-view-badge">Board</span>
+          </div>
+          <div class="board-header-actions">
+            <button id="btn-add-bucket" class="btn btn-primary btn-sm">＋ Add Bucket</button>
+            <button id="btn-back-to-list" class="btn btn-ghost btn-sm">← List View</button>
+          </div>
+        </header>
+        <div id="board-columns" class="board-columns"></div>
+        <div id="no-buckets" class="empty-state hidden">
+          <p>No buckets yet. Create one to start organizing your tasks!</p>
         </div>
       </div>
     </main>

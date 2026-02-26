@@ -29,6 +29,15 @@ db.exec(`
     title TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'todo',
     parentId TEXT,
+    bucketId TEXT,
+    createdAt INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS buckets (
+    id TEXT PRIMARY KEY,
+    projectId TEXT NOT NULL,
+    name TEXT NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0,
     createdAt INTEGER NOT NULL
   );
 
@@ -72,6 +81,11 @@ try {
     db.exec(`ALTER TABLE tasks ADD COLUMN parentId TEXT`);
 } catch { /* column already exists */ }
 
+// Add bucketId column if missing (for existing databases)
+try {
+    db.exec(`ALTER TABLE tasks ADD COLUMN bucketId TEXT`);
+} catch { /* column already exists */ }
+
 // ---- Prepared statements ----
 
 const stmts = {
@@ -80,18 +94,23 @@ const stmts = {
     getEntries: db.prepare('SELECT * FROM time_entries ORDER BY startTime'),
     getComments: db.prepare('SELECT * FROM comments ORDER BY createdAt DESC'),
     getAttachments: db.prepare('SELECT * FROM attachments ORDER BY createdAt DESC'),
+    getBuckets: db.prepare('SELECT * FROM buckets ORDER BY position, createdAt'),
 
     clearProjects: db.prepare('DELETE FROM projects'),
     clearTasks: db.prepare('DELETE FROM tasks'),
     clearEntries: db.prepare('DELETE FROM time_entries'),
     clearComments: db.prepare('DELETE FROM comments'),
     clearAttachments: db.prepare('DELETE FROM attachments'),
+    clearBuckets: db.prepare('DELETE FROM buckets'),
 
     insertProject: db.prepare(
         'INSERT OR REPLACE INTO projects (id, name, color, createdAt) VALUES (@id, @name, @color, @createdAt)'
     ),
     insertTask: db.prepare(
-        'INSERT OR REPLACE INTO tasks (id, projectId, title, status, parentId, createdAt) VALUES (@id, @projectId, @title, @status, @parentId, @createdAt)'
+        'INSERT OR REPLACE INTO tasks (id, projectId, title, status, parentId, bucketId, createdAt) VALUES (@id, @projectId, @title, @status, @parentId, @bucketId, @createdAt)'
+    ),
+    insertBucket: db.prepare(
+        'INSERT OR REPLACE INTO buckets (id, projectId, name, position, createdAt) VALUES (@id, @projectId, @name, @position, @createdAt)'
     ),
     insertEntry: db.prepare(
         `INSERT OR REPLACE INTO time_entries
@@ -115,6 +134,7 @@ export function loadAll() {
     const rawEntries = stmts.getEntries.all();
     const comments = stmts.getComments.all();
     const attachments = stmts.getAttachments.all();
+    const buckets = stmts.getBuckets.all();
 
     // Convert SQLite integers back to booleans/nulls
     const timeEntries = rawEntries.map(e => ({
@@ -130,7 +150,7 @@ export function loadAll() {
         isPaused: !!e.isPaused,
     }));
 
-    return { projects, tasks, timeEntries, comments, attachments };
+    return { projects, tasks, timeEntries, comments, attachments, buckets };
 }
 
 /** Replace all data in the database */
@@ -140,6 +160,7 @@ export const saveAll = db.transaction((data) => {
     stmts.clearEntries.run();
     stmts.clearComments.run();
     stmts.clearAttachments.run();
+    stmts.clearBuckets.run();
 
     for (const p of data.projects) {
         stmts.insertProject.run(p);
@@ -152,7 +173,18 @@ export const saveAll = db.transaction((data) => {
             title: t.title,
             status: t.status,
             parentId: t.parentId ?? null,
+            bucketId: t.bucketId ?? null,
             createdAt: t.createdAt,
+        });
+    }
+
+    for (const b of (data.buckets || [])) {
+        stmts.insertBucket.run({
+            id: b.id,
+            projectId: b.projectId,
+            name: b.name,
+            position: b.position ?? 0,
+            createdAt: b.createdAt,
         });
     }
 

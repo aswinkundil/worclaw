@@ -15,7 +15,7 @@ const BREAK_TYPES = [
 ];
 
 // ---- In-memory cache ----
-let cache = { projects: [], tasks: [], timeEntries: [], comments: [], attachments: [] };
+let cache = { projects: [], tasks: [], timeEntries: [], comments: [], attachments: [], buckets: [] };
 
 function loadData() {
     return cache;
@@ -89,6 +89,7 @@ export function deleteProject(id) {
     data.timeEntries = data.timeEntries.filter(e => !taskIds.includes(e.taskId));
     data.tasks = data.tasks.filter(t => t.projectId !== id);
     data.projects = data.projects.filter(p => p.id !== id);
+    data.buckets = (data.buckets || []).filter(b => b.projectId !== id);
     saveData(data);
 }
 
@@ -102,18 +103,18 @@ export function getTask(taskId) {
     return loadData().tasks.find(t => t.id === taskId) || null;
 }
 
-export function addTask(projectId, title, parentId = null) {
+export function addTask(projectId, title, parentId = null, bucketId = null) {
     const data = loadData();
-    const task = { id: uid(), projectId, title, status: 'todo', parentId, createdAt: Date.now() };
+    const task = { id: uid(), projectId, title, status: 'todo', parentId, bucketId, createdAt: Date.now() };
     data.tasks.push(task);
     saveData(data);
     return task;
 }
 
-export function addTasksBulk(projectId, titles, parentId = null) {
+export function addTasksBulk(projectId, titles, parentId = null, bucketId = null) {
     const data = loadData();
     const tasks = titles.map(title => ({
-        id: uid(), projectId, title, status: 'todo', parentId, createdAt: Date.now(),
+        id: uid(), projectId, title, status: 'todo', parentId, bucketId, createdAt: Date.now(),
     }));
     data.tasks.push(...tasks);
     saveData(data);
@@ -497,3 +498,51 @@ export function deleteAttachment(attachmentId) {
 }
 
 export { PROJECT_COLORS, BREAK_TYPES };
+
+// ---- Buckets ----
+
+export function getBuckets(projectId) {
+    return (loadData().buckets || []).filter(b => b.projectId === projectId)
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || a.createdAt - b.createdAt);
+}
+
+export function addBucket(projectId, name) {
+    const data = loadData();
+    if (!data.buckets) data.buckets = [];
+    const existing = data.buckets.filter(b => b.projectId === projectId);
+    const position = existing.length;
+    const bucket = { id: uid(), projectId, name, position, createdAt: Date.now() };
+    data.buckets.push(bucket);
+    saveData(data);
+    return bucket;
+}
+
+export function renameBucket(bucketId, name) {
+    const data = loadData();
+    const bucket = (data.buckets || []).find(b => b.id === bucketId);
+    if (bucket) {
+        bucket.name = name;
+        saveData(data);
+    }
+    return bucket;
+}
+
+export function deleteBucket(bucketId) {
+    const data = loadData();
+    // Move tasks from this bucket back to unbucketed
+    data.tasks.forEach(t => {
+        if (t.bucketId === bucketId) t.bucketId = null;
+    });
+    data.buckets = (data.buckets || []).filter(b => b.id !== bucketId);
+    saveData(data);
+}
+
+export function setTaskBucket(taskId, bucketId) {
+    const data = loadData();
+    const task = data.tasks.find(t => t.id === taskId);
+    if (task) {
+        task.bucketId = bucketId || null;
+        saveData(data);
+    }
+    return task;
+}

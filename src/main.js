@@ -6,6 +6,7 @@ import { startTick, stopTick, handlePause, handleResume, handleStop } from './ti
 
 // ---- State ----
 let selectedProjectId = null;
+let currentView = 'tasks'; // 'tasks' | 'board' | 'daily' | 'workload'
 
 // ---- Helpers ----
 function $(sel) { return document.querySelector(sel); }
@@ -16,8 +17,13 @@ function refresh() {
     ui.renderProjects(selectedProjectId);
     ui.renderActiveTaskBanner();
     if (selectedProjectId) {
-        ui.showTasksView(selectedProjectId);
-        ui.renderTasks(selectedProjectId, activeEntry);
+        if (currentView === 'board') {
+            ui.showBoardView(selectedProjectId);
+            ui.renderBucketBoard(selectedProjectId, activeEntry);
+        } else {
+            ui.showTasksView(selectedProjectId);
+            ui.renderTasks(selectedProjectId, activeEntry);
+        }
     }
     // restart tick if there's an active timer
     if (activeEntry) {
@@ -77,6 +83,7 @@ function wireEvents() {
     // ---- Select project ----
     ui.on('selectProject', id => {
         selectedProjectId = id;
+        currentView = 'tasks';
         refresh();
     });
 
@@ -191,6 +198,7 @@ function wireEvents() {
     // ---- Daily view ----
     $('#btn-daily-view').addEventListener('click', () => {
         selectedProjectId = null;
+        currentView = 'daily';
         ui.renderProjects(null);
         const today = ui.todayStr();
         $('#date-picker').value = today;
@@ -211,10 +219,61 @@ function wireEvents() {
     // ---- Workload view ----
     $('#btn-workload').addEventListener('click', () => {
         selectedProjectId = null;
+        currentView = 'workload';
         ui.renderProjects(null);
         const today = ui.todayStr();
         $('#workload-date-picker').value = today;
         ui.renderWorkload(today);
+    });
+
+    // ---- Board view ----
+    $('#btn-board-view').addEventListener('click', () => {
+        if (!selectedProjectId) {
+            // Pick the first project if none selected
+            const projects = store.getProjects();
+            if (projects.length === 0) return;
+            selectedProjectId = projects[0].id;
+        }
+        currentView = 'board';
+        refresh();
+    });
+
+    $('#btn-add-bucket').addEventListener('click', () => {
+        const name = prompt('Bucket name:');
+        if (name && name.trim() && selectedProjectId) {
+            store.addBucket(selectedProjectId, name.trim());
+            refresh();
+        }
+    });
+
+    $('#btn-back-to-list').addEventListener('click', () => {
+        currentView = 'tasks';
+        refresh();
+    });
+
+    ui.on('renameBucket', bucketId => {
+        const bucket = store.getBuckets(selectedProjectId).find(b => b.id === bucketId);
+        const name = prompt('New bucket name:', bucket?.name || '');
+        if (name && name.trim()) {
+            store.renameBucket(bucketId, name.trim());
+            refresh();
+        }
+    });
+
+    ui.on('deleteBucket', bucketId => {
+        if (confirm('Delete this bucket? Tasks will be moved to Unbucketed.')) {
+            store.deleteBucket(bucketId);
+            refresh();
+        }
+    });
+
+    ui.on('addTaskToBoard', ({ projectId, title, bucketId }) => {
+        store.addTask(projectId, title, null, bucketId);
+        refresh();
+    });
+
+    ui.on('boardRefresh', () => {
+        refresh();
     });
 
     $('#workload-date-picker').addEventListener('change', e => {
