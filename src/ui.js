@@ -178,10 +178,10 @@ function timerButtons(taskId, isActive, isPaused, activeEntry) {
 
 /** Live-update just the timer display for the active task without re-rendering everything */
 export function updateTimerDisplay(entry, elapsedMs) {
-  const display = document.querySelector(`.timer-display[data-task-id="${entry.taskId}"]`);
-  if (display) {
+  // Update ALL matching timer displays (covers both list view and board view)
+  document.querySelectorAll(`.timer-display[data-task-id="${entry.taskId}"]`).forEach(display => {
     display.textContent = formatTime(elapsedMs);
-  }
+  });
   // Also update the banner timer
   const bannerTimer = $('#active-banner-timer');
   if (bannerTimer) {
@@ -654,7 +654,16 @@ export function renderBucketBoard(projectId, activeEntry) {
   const container = $('#board-columns');
   const noBuckets = $('#no-buckets');
   const buckets = store.getBuckets(projectId);
-  const allTasks = store.getTasks(projectId);
+  // Filter out parent tasks — they can't have timers and clutter the board
+  const allTasks = store.getTasks(projectId).filter(t => !store.isParent(t.id));
+
+  // Save scroll positions before re-render
+  const scrollPositions = {};
+  const containerScrollLeft = container.scrollLeft;
+  container.querySelectorAll('.board-cards').forEach(cards => {
+    const col = cards.closest('.board-column');
+    if (col) scrollPositions[col.dataset.bucketId] = cards.scrollTop;
+  });
 
   container.innerHTML = '';
 
@@ -788,6 +797,15 @@ export function renderBucketBoard(projectId, activeEntry) {
     colEl.appendChild(addRow);
 
     container.appendChild(colEl);
+  });
+
+  // Restore scroll positions after re-render
+  container.scrollLeft = containerScrollLeft;
+  container.querySelectorAll('.board-cards').forEach(cards => {
+    const col = cards.closest('.board-column');
+    if (col && scrollPositions[col.dataset.bucketId] !== undefined) {
+      cards.scrollTop = scrollPositions[col.dataset.bucketId];
+    }
   });
 
   // Wire up event listeners on new cards
